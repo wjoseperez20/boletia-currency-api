@@ -34,7 +34,8 @@ func InitRouter() *gin.Engine {
 		v1.POST("/register", middleware.APIKeyAuth(), auth.RegisterHandler)
 
 		// Currency
-		v1.GET("/currency", middleware.APIKeyAuth(), currencies.FindCurrencies())
+		v1.GET("/currencies", middleware.JWTAuth(), currencies.FindCurrencies)
+		v1.GET("/currencies/:id", middleware.JWTAuth(), currencies.FindCurrency)
 	}
 
 	// Swagger

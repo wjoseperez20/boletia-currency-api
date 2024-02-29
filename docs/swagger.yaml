@@ -1,4 +1,26 @@
 basePath: /api/v1
+definitions:
+  models.Currency:
+    properties:
+      code:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      value:
+        type: number
+    type: object
+  models.LoginUser:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
 externalDocs:
   description: OpenAPI
   url: https://swagger.io/resources/open-api/
@@ -11,7 +33,144 @@ info:
     url: https://opensource.org/licenses/MIT
   title: Boletia Currency API
   version: "1.0"
-paths: {}
+paths:
+  /_:
+    get:
+      consumes:
+      - application/json
+      description: do ping
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Healthcheck
+      tags:
+      - Healthcheck
+  /currencies:
+    get:
+      description: Get a list of all currencies with optional pagination
+      parameters:
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      - default: 10
+        description: Limit for pagination
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved list of currencies
+          schema:
+            items:
+              $ref: '#/definitions/models.Currency'
+            type: array
+      security:
+      - JwtAuth: []
+      summary: Get all currencies with pagination
+      tags:
+      - Currencies
+  /currencies/{currency}:
+    get:
+      description: Get details of a currency by its ID
+      parameters:
+      - description: Currency ID
+        in: path
+        name: currency
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved currency
+          schema:
+            $ref: '#/definitions/models.Currency'
+        "404":
+          description: Currency not found
+          schema:
+            type: string
+      security:
+      - JwtAuth: []
+      summary: Find a currency by ID
+      tags:
+      - Currencies
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user using username and password, returns a JWT
+        token if successful
+      parameters:
+      - description: User login object
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT Token
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Authenticate a user
+      tags:
+      - user
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new user with the given username and password
+      parameters:
+      - description: User registration object
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully registered
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Register a new user
+      tags:
+      - user
 securityDefinitions:
   ApiKeyAuth:
     in: header

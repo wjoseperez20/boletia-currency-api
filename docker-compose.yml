@@ -1,10 +1,10 @@
 version: '1.0'
 
-name : boletia-currencies-containers
+name : boletia-currency-containers
 
 services:
   backend:
-    container_name: boletia-currencies-api
+    container_name: boletia-currency-api
     build:
       context: .
       dockerfile: Dockerfile
