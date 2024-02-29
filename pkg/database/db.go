@@ -35,8 +35,23 @@ func ConnectDatabase() {
 		}
 	}
 
-	database.AutoMigrate(&models.Currency{})
-	database.AutoMigrate(&models.User{})
+	err = database.AutoMigrate(&models.RequestHistory{})
+	if err != nil {
+		log.Printf("Failed to migrate request history table: %v", err)
+		return
+	}
+
+	err = database.AutoMigrate(&models.Currency{})
+	if err != nil {
+		log.Printf("Failed to migrate currency table: %v", err)
+		return
+	}
+
+	err = database.AutoMigrate(&models.User{})
+	if err != nil {
+		log.Printf("Failed to migrate user table: %v", err)
+		return
+	}
 
 	DB = database
 }

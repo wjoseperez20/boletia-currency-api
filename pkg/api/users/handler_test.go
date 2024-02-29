@@ -13,22 +13,25 @@ import (
 	"time"
 )
 
-func TestLoginUser(t *testing.T) {
+func TestLoginUser_Success(t *testing.T) {
 	// Given
 	r := gin.Default()
 	r.POST("/login", LoginUser)
 
-	parseTime, err := time.Parse(time.RFC3339Nano, "2023-11-25T15:30:45.123456Z")
+	parseTime, err := time.Parse(time.RFC3339Nano, "2024-02-19T15:30:45.123456Z")
+	require.NoError(t, err)
+
 	incomingUser := models.User{
 		Username: "test",
 		Password: "test",
 	}
 
 	dbMock, gormDB := helper.SetupTestDatabase(t)
+	defer dbMock.ExpectClose()
 	database.DB = gormDB
 
-	mockUser := models.User{Username: "test", Password: "$2a$14$7z17lzN8ckCiGEQQdbQ2c.XsnJYDunu8SQ1H9BG9EqT4FpVwez68K", CreatedAt: parseTime, UpdatedAt: parseTime}
-	dbMock.ExpectQuery(`SELECT \* FROM "users" WHERE username = (.+) ORDER BY "users"."username" LIMIT (.+)`).
+	mockUser := models.User{Username: "test", Password: "$2a$14$q6TbZ6LL71UjKldZheALMu5jS6AA3/BbFyB6AviKCO9B5LQJ4WMcq", CreatedAt: parseTime, UpdatedAt: parseTime}
+	dbMock.ExpectQuery(`SELECT \* FROM "user" WHERE username = (.+) ORDER BY "user"."username" LIMIT (.+)`).
 		WithArgs("test", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"username", "password", "created_at", "updated_at"}).
 			AddRow(mockUser.Username, mockUser.Password, mockUser.CreatedAt, mockUser.UpdatedAt))
@@ -43,4 +46,39 @@ func TestLoginUser(t *testing.T) {
 	// Then
 	require.NoError(t, err)
 	require.NotNil(t, expected["token"])
+}
+
+func TestRegisterUser_Fail(t *testing.T) {
+	// Given
+	r := gin.Default()
+	r.POST("/register", RegisterUser)
+
+	parseTime, err := time.Parse(time.RFC3339Nano, "2024-02-19T15:30:45.123456Z")
+	require.NoError(t, err)
+
+	incomingUser := models.User{
+		Username: "test",
+		Password: "test",
+	}
+
+	hashedPassword := "$2a$14$7z17lzN8ckCiGEQQdbQ2c.XsnJYDunu8SQ1H9BG9EqT4FpVwez68K"
+
+	dbMock, gormDB := helper.SetupTestDatabase(t)
+	defer dbMock.ExpectClose()
+	database.DB = gormDB
+
+	dbMock.ExpectExec(`INSERT INTO "user" (.+) VALUES (.+)`).
+		WithArgs("test", hashedPassword, parseTime, parseTime).
+		WillReturnError(nil)
+
+	// When
+	w := helper.PerformRequest(r, "POST", "/register", helper.ToJSON(incomingUser))
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var expected map[string]interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &expected)
+
+	// Then
+	require.NoError(t, err)
+	require.NotNil(t, expected)
 }

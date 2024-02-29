@@ -29,7 +29,6 @@ import (
 // @Router /login [post]
 func LoginUser(c *gin.Context) {
 	var incomingUser models.LoginUser
-	var dbUser models.User
 
 	// Get JSON body
 	if err := c.ShouldBindJSON(&incomingUser); err != nil {
@@ -37,12 +36,13 @@ func LoginUser(c *gin.Context) {
 		return
 	}
 
+	var dbUser models.User
 	// Fetch the user from the database
 	if err := database.DB.Where("username = ?", incomingUser.Username).First(&dbUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		}
 		return
 	}

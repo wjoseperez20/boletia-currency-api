@@ -22,6 +22,10 @@ services:
       POSTGRES_PORT: 5435
       JWT_SECRET_KEY: ObL89O3nOSSEj6tbdHako0cXtPErzBUfq8l8o/3KD9g=INSECURE
       API_SECRET_KEY: cJGZ8L1sDcPezjOy1zacPJZxzZxrPObm2Ggs1U0V+fE=INSECURE
+      DAEMON_WAKEUP: 60
+      CURRENCY_API_ENDPOINT: https://api.currencyapi.com/v3/latest
+      CURRENCY_API_KEY: LbL89O3nOSSEj6tbdHffg0cXtPErzBUfq8l8o/3KD9g=INSECURE
+      CURRENCY_API_TIMEOUT: 10
 
   db:
     container_name: dockerPostgres

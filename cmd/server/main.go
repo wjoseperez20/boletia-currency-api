@@ -1,12 +1,12 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/api"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/cache"
+	"github.com/wjoseperez20/boletia-currency-api/pkg/daemon"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
 	"log"
-
-	"github.com/gin-gonic/gin"
 )
 
 // @title           Boletia Currency API
@@ -33,11 +33,15 @@ func main() {
 	cache.InitRedis()
 	database.ConnectDatabase()
 
+	go daemon.InitDaemon()
+
 	//gin.SetMode(gin.ReleaseMode)
 	gin.SetMode(gin.DebugMode)
 
+	// Initialize Gin router
 	r := api.InitRouter()
 
+	// Run the server
 	if err := r.Run(":8001"); err != nil {
 		log.Fatal(err)
 	}

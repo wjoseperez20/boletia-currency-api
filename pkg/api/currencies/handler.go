@@ -1,14 +1,15 @@
 package currencies
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/wjoseperez20/boletia-currency-api/pkg/cache"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/models"
 	"net/http"
-	"strconv"
+	"time"
 )
 
-// @BasePath /api/v1
 // FindCurrency godoc
 // @Summary Find a currency by ID
 // @Description Get details of a currency by its ID
@@ -22,7 +23,8 @@ import (
 func FindCurrency(c *gin.Context) {
 	var currency models.Currency
 
-	if err := database.DB.Where("currency = ?", c.Param("currency")).First(&currency).Error; err != nil {
+	// Check if currency exists
+	if err := database.DB.Where("name = ?", c.Param("name")).First(&currency).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "currency not found"})
 		return
 	}
@@ -43,29 +45,57 @@ func FindCurrency(c *gin.Context) {
 func FindCurrencies(c *gin.Context) {
 	var currencies []models.Currency
 
+	// Get current date and format it to "YYYY-MM-DDT00:00:00Z"
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	todayFormatted := today.Format(time.RFC3339)
+
 	// Get query params
-	offsetQuery := c.DefaultQuery("offset", "0")
-	limitQuery := c.DefaultQuery("limit", "10")
+	finitQuery := c.DefaultQuery("finit", todayFormatted)
+	fendQuery := c.DefaultQuery("fend", todayFormatted)
 
-	// Convert query params to integers
-	offset, err := strconv.Atoi(offsetQuery)
+	// Parse query params into time.Time
+	finit, err := time.Parse(time.RFC3339, finitQuery)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset format"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start date format"})
 		return
 	}
 
-	limit, err := strconv.Atoi(limitQuery)
+	fend, err := time.Parse(time.RFC3339, fendQuery)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit format"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end date format"})
 		return
 	}
 
-	// Get currencies with pagination
-	if err := database.DB.Offset(offset).Limit(limit).Find(&currencies).Error; err != nil {
+	// Create a cache key based on query params
+	cacheKey := "currencies_finit_" + finitQuery + "_fend_" + fendQuery
+
+	// Get currencies from cache
+	cachedCurrencies, err := cache.Rdb.Get(cache.Ctx, cacheKey).Result()
+	if err == nil {
+		err := json.Unmarshal([]byte(cachedCurrencies), &currencies)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error fetching currencies"})
+			return
+		}
+		c.JSON(http.StatusOK, currencies)
+		return
+	}
+
+	// If cache missed, fetch data from the database
+	database.DB.Where("created_at BETWEEN ? AND ?", finit, fend).Find(&currencies)
+
+	// Serialize currencies object and store in cache
+	serializedCurrencies, err := json.Marshal(currencies)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error fetching currencies"})
+		return
+	}
+	err = cache.Rdb.Set(cache.Ctx, cacheKey, serializedCurrencies, 0).Err()
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error fetching currencies"})
 		return
 	}
 
 	c.JSON(http.StatusOK, currencies)
-
 }
