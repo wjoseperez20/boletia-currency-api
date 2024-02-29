@@ -4,7 +4,7 @@ import (
 	"github.com/wjoseperez20/boletia-currency-api/docs"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/api/currencies"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/api/healtcheck"
-	"github.com/wjoseperez20/boletia-currency-api/pkg/auth"
+	"github.com/wjoseperez20/boletia-currency-api/pkg/api/users"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/middleware"
 	"time"
 
@@ -30,8 +30,8 @@ func InitRouter() *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/_", healtcheck.Healthcheck)
-		v1.POST("/login", middleware.APIKeyAuth(), auth.LoginHandler)
-		v1.POST("/register", middleware.APIKeyAuth(), auth.RegisterHandler)
+		v1.POST("/login", middleware.APIKeyAuth(), users.LoginUser)
+		v1.POST("/register", middleware.APIKeyAuth(), users.RegisterUser)
 
 		// Currency
 		v1.GET("/currencies", middleware.JWTAuth(), currencies.FindCurrencies)
