@@ -1,0 +1,44 @@
+version: '1.0'
+
+name : boletia-currencies-containers
+
+services:
+  backend:
+    container_name: boletia-currencies-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8001:8001
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    environment:
+      POSTGRES_DB: boletia_currency
+      POSTGRES_HOST: dockerPostgres
+      POSTGRES_USER: docker
+      POSTGRES_PASSWORD: password
+      POSTGRES_PORT: 5435
+      JWT_SECRET_KEY: ObL89O3nOSSEj6tbdHako0cXtPErzBUfq8l8o/3KD9g=INSECURE
+      API_SECRET_KEY: cJGZ8L1sDcPezjOy1zacPJZxzZxrPObm2Ggs1U0V+fE=INSECURE
+
+  db:
+    container_name: dockerPostgres
+    image: postgres:14.1-alpine
+    restart: always
+    volumes:
+      - .dbdata:/var/lib/postgres
+    ports:
+      - '5435:5435'
+    environment:
+      - POSTGRES_DB=boletia_currency
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=password
+    command: -p 5435
+
+  redis:
+    container_name: dockerRedis
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
