@@ -12,7 +12,12 @@ import (
 	"github.com/wjoseperez20/boletia-currency-api/pkg/models"
 )
 
-func Manager(c *gin.Context) {
+// HandleCurrencyRequest godoc
+// @Summary Manage currency requests
+// @Description check param name to get all currencies or a specific currency by date range
+// @Produce json
+// @Param name path string true "Currency name"
+func HandleCurrencyRequest(c *gin.Context) {
 	// Get query params
 	currencyName := strings.ToUpper(c.Param("name"))
 	finitQuery := c.DefaultQuery("finit", "")
@@ -26,7 +31,7 @@ func Manager(c *gin.Context) {
 
 	// Take action based on query params
 	if currencyName == "ALL" {
-		FetchAllCurrencies(c)
+		fetchAllCurrencies(c)
 		return
 	}
 
@@ -52,12 +57,18 @@ func Manager(c *gin.Context) {
 	}
 
 	// Fetch or retrieve currencies
-	FindCurrencyByDateRange(c, currencyName, finit, fend, finitQuery, fendQuery)
+	fetchCurrencyByDateRange(c, currencyName, finit, fend, finitQuery, fendQuery)
 }
 
-func FetchAllCurrencies(c *gin.Context) {
+// fetchAllCurrencies godoc
+// @Summary Get all currencies
+// @Description Get all currencies from the database
+// @Produce json
+// @Success 200 {object} []models.Currency
+// @Router /currencies/ALL [get]
+func fetchAllCurrencies(c *gin.Context) {
 	// Get all currencies from the database or cache
-	var currencies []models.Currency
+	var groupedCurrencies []models.GroupedCurrencies
 	cacheKey := "currency_all"
 
 	// Attempt to retrieve currencies from cache
@@ -66,19 +77,55 @@ func FetchAllCurrencies(c *gin.Context) {
 		return
 	}
 
-	// Fetch currencies from the database
-	database.DB.Find(&currencies)
+	// Get all currencies from the database
+	var currencies []models.Currency
+	if err := database.DB.Select("name, created_at, value").Find(&currencies).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create a map to store grouped currencies
+	currencyMap := make(map[string][]models.Currency)
+
+	// Group currencies by code
+	for _, currency := range currencies {
+		currencyMap[currency.Name] = append(currencyMap[currency.Name], currency)
+	}
+
+	// Format grouped currencies into GroupedCurrencies struct
+	for code, currencyList := range currencyMap {
+		var data []models.CurrencyData
+
+		for _, currency := range currencyList {
+			data = append(data, models.CurrencyData{
+				Date:  currency.CreatedAt.Format("2006-01-02T15:04:05"),
+				Value: currency.Value,
+			})
+		}
+
+		groupedCurrencies = append(groupedCurrencies, models.GroupedCurrencies{
+			Code: code,
+			Data: data,
+		})
+	}
 
 	// Store currencies in cache
-	storeCurrenciesInCache(cacheKey, currencies)
+	storeCurrenciesInCache(cacheKey, groupedCurrencies)
 
-	c.JSON(http.StatusOK, currencies)
+	c.JSON(http.StatusOK, groupedCurrencies)
 }
 
-func FindCurrencyByDateRange(c *gin.Context, currencyName string, finit, fend time.Time, finitQuery, fendQuery string) {
-	// Get currencies by date range from the database or cache
-	var currencies []models.Currency
-	cacheKey := "currency_" + currencyName + "_finit_" + finitQuery + "_fend_" + fendQuery
+// fetchCurrencyByDateRange godoc
+// @Summary Get currency by date range
+// @Description Get currency by date range from the database
+// @Produce json
+// @Param name path string true "Currency name"
+// @Param finit query string false "Start date"
+// @Param fend query string false "End date"
+// @Success 200 {object} []models.Currency
+func fetchCurrencyByDateRange(c *gin.Context, currencyName string, startDate, endDate time.Time, startQueryParam, endQueryParam string) {
+	// Prepare cache key using currency name and date range
+	cacheKey := "currency_" + currencyName + "_start_" + startDate.Format("2006-01-02") + "_end_" + endDate.Format("2006-01-02")
 
 	// Attempt to retrieve currencies from cache
 	if cachedCurrencies, err := getCurrenciesFromCache(cacheKey); err == nil {
@@ -86,29 +133,37 @@ func FindCurrencyByDateRange(c *gin.Context, currencyName string, finit, fend ti
 		return
 	}
 
-	// Construct database query for currency and date range
-	dbQuery := database.DB.Where("name = ?", currencyName)
-
-	if !finit.IsZero() && !fend.IsZero() {
-		dbQuery = dbQuery.Where("created_at BETWEEN ? AND ?", finit, fend)
-	} else if !finit.IsZero() {
-		dbQuery = dbQuery.Where("created_at >= ?", finit)
-	} else if !fend.IsZero() {
-		dbQuery = dbQuery.Where("created_at <= ?", fend)
+	// Retrieve currency history from the database
+	var currencyHistory []models.Currency
+	if err := database.DB.Select("name, created_at, value").
+		Where("name = ? AND created_at BETWEEN ? AND ?", currencyName, startDate, endDate).
+		Find(&currencyHistory).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	// Fetch currencies from the database
-	dbQuery.Find(&currencies)
+	// Format currency history into desired structure
+	var formattedHistory []models.CurrencyData
+	for _, history := range currencyHistory {
+		formattedHistory = append(formattedHistory, models.CurrencyData{
+			Date:  history.CreatedAt.Format("2006-01-02T15:04:05"),
+			Value: history.Value,
+		})
+	}
+	groupedCurrencies := models.GroupedCurrencies{
+		Code: currencyName,
+		Data: formattedHistory,
+	}
 
-	// Store currencies in cache
-	storeCurrenciesInCache(cacheKey, currencies)
+	// Store currency history in cache
+	storeCurrenciesInCache(cacheKey, groupedCurrencies)
 
-	c.JSON(http.StatusOK, currencies)
+	c.JSON(http.StatusOK, groupedCurrencies)
 }
 
-func getCurrenciesFromCache(cacheKey string) ([]models.Currency, error) {
+func getCurrenciesFromCache(cacheKey string) (interface{}, error) {
 	// Retrieve currencies from cache
-	var currencies []models.Currency
+	var currencies interface{}
 
 	cachedCurrencies, err := cache.Rdb.Get(cache.Ctx, cacheKey).Result()
 	if err != nil {
@@ -119,9 +174,9 @@ func getCurrenciesFromCache(cacheKey string) ([]models.Currency, error) {
 	return currencies, err
 }
 
-func storeCurrenciesInCache(cacheKey string, currencies []models.Currency) {
+func storeCurrenciesInCache(cacheKey string, currency interface{}) {
 	// Store currencies in cache
-	serializedCurrencies, err := json.Marshal(currencies)
+	serializedCurrencies, err := json.Marshal(currency)
 	if err != nil {
 		return
 	}

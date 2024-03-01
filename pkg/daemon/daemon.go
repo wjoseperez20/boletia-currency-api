@@ -4,18 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
-	"github.com/wjoseperez20/boletia-currency-api/pkg/models"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/wjoseperez20/boletia-currency-api/pkg/cache"
+	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
+	"github.com/wjoseperez20/boletia-currency-api/pkg/models"
 )
 
 var httpClient *http.Client
 
 func init() {
+	// Initialize HTTP client with timeout and transport settings
 	timeoutStr := os.Getenv("CURRENCY_API_TIMEOUT")
 	if timeoutStr == "" {
 		log.Fatal("CURRENCY_API_TIMEOUT is not set")
@@ -36,6 +40,7 @@ func init() {
 	}
 }
 
+// getCurrencyData retrieves currency data from an external API.
 func getCurrencyData() (models.CurrencyAPIResponse, error) {
 	apiEndpoint := os.Getenv("CURRENCY_API_ENDPOINT")
 	apiKey := os.Getenv("CURRENCY_API_KEY")
@@ -55,7 +60,12 @@ func getCurrencyData() (models.CurrencyAPIResponse, error) {
 	if err != nil {
 		return models.CurrencyAPIResponse{}, fmt.Errorf("error sending HTTP request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %s\n", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return models.CurrencyAPIResponse{}, fmt.Errorf("unexpected response status: %s", resp.Status)
@@ -69,6 +79,7 @@ func getCurrencyData() (models.CurrencyAPIResponse, error) {
 	return currencyResponse, nil
 }
 
+// insertCurrencies inserts currency data into the database.
 func insertCurrencies(currencyResponse models.CurrencyAPIResponse) error {
 	db := database.DB
 
@@ -85,9 +96,10 @@ func insertCurrencies(currencyResponse models.CurrencyAPIResponse) error {
 
 	for code, data := range currencyResponse.Data {
 		currency := models.Currency{
-			Name:  data.Code,
-			Code:  code,
-			Value: data.Value,
+			Name:      data.Code,
+			Code:      code,
+			Value:     data.Value,
+			CreatedAt: currencyResponse.Meta.LastUpdatedAt,
 		}
 
 		if err := tx.Create(&currency).Error; err != nil {
@@ -100,9 +112,31 @@ func insertCurrencies(currencyResponse models.CurrencyAPIResponse) error {
 		return fmt.Errorf("error committing database transaction: %v", err)
 	}
 
+	if err := invalidateCache(); err != nil {
+		return fmt.Errorf("error invalidating cache: %v", err)
+	}
+
 	return nil
 }
 
+// invalidateCache deletes cached currency data.
+func invalidateCache() error {
+	keysPattern := "currency_*"
+	keys, err := cache.Rdb.Keys(cache.Ctx, keysPattern).Result()
+	if err != nil {
+		return fmt.Errorf("error retrieving cache keys: %v", err)
+	}
+
+	for _, key := range keys {
+		if err := cache.Rdb.Del(cache.Ctx, key).Err(); err != nil {
+			return fmt.Errorf("error deleting cache key %s: %v", key, err)
+		}
+	}
+
+	return nil
+}
+
+// InitDaemon initializes the daemon for periodic currency updates.
 func InitDaemon() {
 	wakeupStr := os.Getenv("DAEMON_WAKEUP")
 	if wakeupStr == "" {
@@ -131,4 +165,7 @@ func InitDaemon() {
 			}
 		}
 	}()
+
+	// Wait indefinitely to prevent the function from exiting.
+	select {}
 }

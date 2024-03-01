@@ -10,6 +10,16 @@ type Currency struct {
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 
+type CurrencyData struct {
+	Date  string  `json:"date"`
+	Value float64 `json:"value"`
+}
+
+type GroupedCurrencies struct {
+	Code string         `json:"code"`
+	Data []CurrencyData `json:"data"`
+}
+
 type CurrencyAPIResponse struct {
 	Meta struct {
 		LastUpdatedAt time.Time `json:"last_updated_at"`
