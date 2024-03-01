@@ -42,85 +42,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/currencies": {
+        "/currencies/ALL": {
             "get": {
-                "security": [
-                    {
-                        "JwtAuth": []
-                    }
-                ],
-                "description": "Get a list of all currencies with optional pagination",
+                "description": "Get all currencies from the database",
                 "produces": [
                     "application/json"
                 ],
-                "tags": [
-                    "Currencies"
-                ],
-                "summary": "Get all currencies with pagination",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Offset for pagination",
-                        "name": "offset",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Limit for pagination",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
+                "summary": "Get all currencies",
                 "responses": {
                     "200": {
-                        "description": "Successfully retrieved list of currencies",
+                        "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/models.Currency"
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/currencies/{currency}": {
-            "get": {
-                "security": [
-                    {
-                        "JwtAuth": []
-                    }
-                ],
-                "description": "Get details of a currency by its ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Currencies"
-                ],
-                "summary": "Find a currency by ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Currency ID",
-                        "name": "currency",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully retrieved currency",
-                        "schema": {
-                            "$ref": "#/definitions/models.Currency"
-                        }
-                    },
-                    "404": {
-                        "description": "Currency not found",
-                        "schema": {
-                            "type": "string"
                         }
                     }
                 }
@@ -141,7 +77,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "User"
                 ],
                 "summary": "Authenticate a user",
                 "parameters": [
@@ -198,7 +134,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "User"
                 ],
                 "summary": "Register a new user",
                 "parameters": [
@@ -240,6 +176,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "code": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "id": {

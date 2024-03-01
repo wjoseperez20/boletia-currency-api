@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -61,8 +62,23 @@ func getCurrencyData() (models.CurrencyAPIResponse, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			// Log request history
+			requestLog := models.RequestHistory{
+				Endpoint:     apiEndpoint,
+				ResponseTime: 0,
+				StatusCode:   http.StatusRequestTimeout,
+			}
+
+			if err := insertRequestHistory(requestLog); err != nil {
+				log.Printf("Error inserting request history: %s\n", err)
+			}
+		}
+
 		return models.CurrencyAPIResponse{}, fmt.Errorf("error sending HTTP request: %v", err)
 	}
+
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -167,13 +183,13 @@ func InitDaemon() {
 		log.Fatal("DAEMON_WAKEUP is not set")
 	}
 
-	wakeup, err := strconv.Atoi(wakeupStr)
+	_, err := strconv.Atoi(wakeupStr)
 	if err != nil {
 		log.Printf("Error parsing DAEMON_WAKEUP: %s\n", err)
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(wakeup) * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 
 	go func() {
 		for range ticker.C {
