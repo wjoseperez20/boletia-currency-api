@@ -183,13 +183,13 @@ func InitDaemon() {
 		log.Fatal("DAEMON_WAKEUP is not set")
 	}
 
-	_, err := strconv.Atoi(wakeupStr)
+	wakeup, err := strconv.Atoi(wakeupStr)
 	if err != nil {
 		log.Printf("Error parsing DAEMON_WAKEUP: %s\n", err)
 		return
 	}
 
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(time.Duration(wakeup) * time.Second)
 
 	go func() {
 		for range ticker.C {
