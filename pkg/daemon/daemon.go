@@ -56,6 +56,9 @@ func getCurrencyData() (models.CurrencyAPIResponse, error) {
 
 	req.Header.Add("apikey", apiKey)
 
+	// Measure request time
+	start := time.Now()
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return models.CurrencyAPIResponse{}, fmt.Errorf("error sending HTTP request: %v", err)
@@ -66,6 +69,17 @@ func getCurrencyData() (models.CurrencyAPIResponse, error) {
 			log.Printf("Error closing response body: %s\n", err)
 		}
 	}(resp.Body)
+	elapsed := time.Since(start).Seconds()
+
+	// Log request history
+	requestLog := models.RequestHistory{
+		Endpoint:     apiEndpoint,
+		ResponseTime: elapsed,
+		StatusCode:   resp.StatusCode,
+	}
+	if err := insertRequestHistory(requestLog); err != nil {
+		log.Printf("Error inserting request history: %s\n", err)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return models.CurrencyAPIResponse{}, fmt.Errorf("unexpected response status: %s", resp.Status)
@@ -131,6 +145,16 @@ func invalidateCache() error {
 		if err := cache.Rdb.Del(cache.Ctx, key).Err(); err != nil {
 			return fmt.Errorf("error deleting cache key %s: %v", key, err)
 		}
+	}
+
+	return nil
+}
+
+func insertRequestHistory(requestLog models.RequestHistory) error {
+	db := database.DB
+
+	if err := db.Create(&requestLog).Error; err != nil {
+		return fmt.Errorf("error inserting request history: %v", err)
 	}
 
 	return nil

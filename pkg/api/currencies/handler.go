@@ -57,7 +57,7 @@ func HandleCurrencyRequest(c *gin.Context) {
 	}
 
 	// Fetch or retrieve currencies
-	fetchCurrencyByDateRange(c, currencyName, finit, fend, finitQuery, fendQuery)
+	fetchCurrencyByDateRange(c, currencyName, finit, fend)
 }
 
 // fetchAllCurrencies godoc
@@ -82,6 +82,12 @@ func fetchAllCurrencies(c *gin.Context) {
 	if err := database.DB.Select("name, created_at, value").Find(&currencies).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if len(currencies) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No currencies found"})
+		return
+
 	}
 
 	// Create a map to store grouped currencies
@@ -123,9 +129,9 @@ func fetchAllCurrencies(c *gin.Context) {
 // @Param finit query string false "Start date"
 // @Param fend query string false "End date"
 // @Success 200 {object} []models.Currency
-func fetchCurrencyByDateRange(c *gin.Context, currencyName string, startDate, endDate time.Time, startQueryParam, endQueryParam string) {
+func fetchCurrencyByDateRange(c *gin.Context, currencyName string, startDate, endDate time.Time) {
 	// Prepare cache key using currency name and date range
-	cacheKey := "currency_" + currencyName + "_start_" + startDate.Format("2006-01-02") + "_end_" + endDate.Format("2006-01-02")
+	cacheKey := "currency_" + currencyName + "_start_" + startDate.Format("2006-01-02T15:04:05") + "_end_" + endDate.Format("2006-01-02T15:04:05")
 
 	// Attempt to retrieve currencies from cache
 	if cachedCurrencies, err := getCurrenciesFromCache(cacheKey); err == nil {
@@ -140,6 +146,12 @@ func fetchCurrencyByDateRange(c *gin.Context, currencyName string, startDate, en
 		Find(&currencyHistory).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if len(currencyHistory) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No currencies found for the specified date range"})
+		return
+
 	}
 
 	// Format currency history into desired structure
