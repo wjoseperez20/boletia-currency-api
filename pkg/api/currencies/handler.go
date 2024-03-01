@@ -25,25 +25,32 @@ func HandleCurrencyRequest(c *gin.Context) {
 
 	// Check if currency name is empty
 	if currencyName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid currency param"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid currency parameter"})
 		return
 	}
 
-	// Take action based on query params
+	// Check if currency name is "ALL" to fetch all currencies
 	if currencyName == "ALL" {
 		fetchAllCurrencies(c)
 		return
 	}
 
+	// Check database for the currency
+	var currency models.Currency
+	if err := database.DB.Where("name = ?", currencyName).First(&currency).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Currency is not valid"})
+		return
+	}
+
 	// Parse query params into time.Time
+	layout := "2006-01-02T15:04:05"
 	var finit, fend time.Time
 	var err error
-	layout := "2006-01-02T15:04:05"
 
 	if finitQuery != "" {
 		finit, err = time.Parse(layout, finitQuery)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid param start date format"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start date format"})
 			return
 		}
 	}
@@ -51,21 +58,24 @@ func HandleCurrencyRequest(c *gin.Context) {
 	if fendQuery != "" {
 		fend, err = time.Parse(layout, fendQuery)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid param end date format"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end date format"})
 			return
 		}
 	}
 
-	// Fetch or retrieve currencies
+	// Fetch or retrieve currencies by date range
 	fetchCurrencyByDateRange(c, currencyName, finit, fend)
 }
 
 // fetchAllCurrencies godoc
 // @Summary Get all currencies
 // @Description Get all currencies from the database
+// @Tags Currencies
 // @Produce json
-// @Success 200 {object} []models.Currency
-// @Router /currencies/ALL [get]
+// @Success 200 {object} []models.GroupedCurrencies
+// @Failure 404 {string} string "No currencies found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /currencies/all [get]
 func fetchAllCurrencies(c *gin.Context) {
 	// Get all currencies from the database or cache
 	var groupedCurrencies []models.GroupedCurrencies
@@ -123,12 +133,16 @@ func fetchAllCurrencies(c *gin.Context) {
 
 // fetchCurrencyByDateRange godoc
 // @Summary Get currency by date range
-// @Description Get currency by date range from the database
+// @Description Get a specific currency by date range from the database
 // @Produce json
+// @Tags Currencies
 // @Param name path string true "Currency name"
 // @Param finit query string false "Start date"
 // @Param fend query string false "End date"
-// @Success 200 {object} []models.Currency
+// @Success 200 {object} models.GroupedCurrencies
+// @Failure 404 {string} string "No currencies found for the specified date range"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /currencies/{name} [get]
 func fetchCurrencyByDateRange(c *gin.Context, currencyName string, startDate, endDate time.Time) {
 	// Prepare cache key using currency name and date range
 	cacheKey := "currency_" + currencyName + "_start_" + startDate.Format("2006-01-02T15:04:05") + "_end_" + endDate.Format("2006-01-02T15:04:05")

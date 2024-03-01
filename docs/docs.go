@@ -42,11 +42,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/currencies/ALL": {
+        "/currencies/all": {
             "get": {
                 "description": "Get all currencies from the database",
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "Currencies"
                 ],
                 "summary": "Get all currencies",
                 "responses": {
@@ -55,8 +58,73 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.Currency"
+                                "$ref": "#/definitions/models.GroupedCurrencies"
                             }
+                        }
+                    },
+                    "404": {
+                        "description": "No currencies found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/currencies/{name}": {
+            "get": {
+                "description": "Get a specific currency by date range from the database",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Currencies"
+                ],
+                "summary": "Get currency by date range",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Currency name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date",
+                        "name": "finit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date",
+                        "name": "fend",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.GroupedCurrencies"
+                        }
+                    },
+                    "404": {
+                        "description": "No currencies found for the specified date range",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -172,23 +240,28 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.Currency": {
+        "models.CurrencyData": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.GroupedCurrencies": {
             "type": "object",
             "properties": {
                 "code": {
                     "type": "string"
                 },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "number"
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CurrencyData"
+                    }
                 }
             }
         },
