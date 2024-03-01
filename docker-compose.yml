@@ -1,6 +1,6 @@
 version: '1.0'
 
-name : boletia-currency-containers
+name: boletia-currency-containers
 
 services:
   backend:

@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/api"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/cache"
-	"github.com/wjoseperez20/boletia-currency-api/pkg/daemon"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
 	"log"
 )
@@ -33,7 +32,8 @@ func main() {
 	cache.InitRedis()
 	database.ConnectDatabase()
 
-	go daemon.InitDaemon()
+	// Initialize daemon
+	// go daemon.InitDaemon()
 
 	//gin.SetMode(gin.ReleaseMode)
 	gin.SetMode(gin.DebugMode)

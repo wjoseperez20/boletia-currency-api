@@ -2,15 +2,16 @@ package users
 
 import (
 	"encoding/json"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/helper"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/models"
-	"net/http"
-	"testing"
-	"time"
 )
 
 func TestLoginUser_Success(t *testing.T) {
@@ -30,22 +31,27 @@ func TestLoginUser_Success(t *testing.T) {
 	defer dbMock.ExpectClose()
 	database.DB = gormDB
 
-	mockUser := models.User{Username: "test", Password: "$2a$14$q6TbZ6LL71UjKldZheALMu5jS6AA3/BbFyB6AviKCO9B5LQJ4WMcq", CreatedAt: parseTime, UpdatedAt: parseTime}
-	dbMock.ExpectQuery(`SELECT \* FROM "user" WHERE username = (.+) ORDER BY "user"."username" LIMIT (.+)`).
+	mockUser := models.User{
+		ID:        1,
+		Username:  "test",
+		Password:  "$2a$14$q6TbZ6LL71UjKldZheALMu5jS6AA3/BbFyB6AviKCO9B5LQJ4WMcq",
+		CreatedAt: parseTime,
+		UpdatedAt: parseTime,
+	}
+	dbMock.ExpectQuery(`SELECT \* FROM "user" WHERE username = (.+) ORDER BY "user"."id" LIMIT (.+)`).
 		WithArgs("test", 1).
-		WillReturnRows(sqlmock.NewRows([]string{"username", "password", "created_at", "updated_at"}).
-			AddRow(mockUser.Username, mockUser.Password, mockUser.CreatedAt, mockUser.UpdatedAt))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "password", "created_at", "updated_at"}).
+			AddRow(mockUser.ID, mockUser.Username, mockUser.Password, mockUser.CreatedAt, mockUser.UpdatedAt))
 
 	// When
 	w := helper.PerformRequest(r, "POST", "/login", helper.ToJSON(incomingUser))
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var expected map[string]interface{}
-	err = json.Unmarshal(w.Body.Bytes(), &expected)
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 
 	// Then
-	require.NoError(t, err)
-	require.NotNil(t, expected["token"])
+	require.NotNil(t, response["token"])
 }
 
 func TestRegisterUser_Fail(t *testing.T) {
@@ -75,10 +81,9 @@ func TestRegisterUser_Fail(t *testing.T) {
 	w := helper.PerformRequest(r, "POST", "/register", helper.ToJSON(incomingUser))
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 
-	var expected map[string]interface{}
-	err = json.Unmarshal(w.Body.Bytes(), &expected)
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 
 	// Then
-	require.NoError(t, err)
-	require.NotNil(t, expected)
+	require.NotNil(t, response)
 }
