@@ -24,7 +24,8 @@ func HandleCurrencyRequest(c *gin.Context) {
 	fendQuery := c.DefaultQuery("fend", "")
 
 	// Check if currency name is "ALL" to fetch all currencies
-	if currencyName == "ALL" {
+	// The Albanian Lek (ALL) code conflicts with the "ALL" keyword
+	if currencyName == "ALL" && finitQuery == "" && fendQuery == "" {
 		fetchAllCurrencies(c)
 		return
 	}
