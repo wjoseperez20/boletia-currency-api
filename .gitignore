@@ -32,6 +32,5 @@ docker-compose.yaml
 
 # Docker
 .dbdata/
-docker-compose.yml
 
 # End of https://www.toptal.com/developers/gitignore/api/go
