@@ -2,17 +2,93 @@ package users
 
 import (
 	"encoding/json"
+	"errors"
+	"github.com/DATA-DOG/go-sqlmock"
+	"gorm.io/gorm"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/database"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/helper"
 	"github.com/wjoseperez20/boletia-currency-api/pkg/models"
 )
+
+func TestLoginUser_BadRequest(t *testing.T) {
+	// Given
+	r := gin.Default()
+	r.POST("/login", LoginUser)
+
+	// When
+	w := helper.PerformRequest(r, "POST", "/login", nil)
+	require.Equal(t, http.StatusBadRequest, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+
+	// Then
+	require.NotNil(t, response)
+}
+
+func TestLoginUser_Unauthorized(t *testing.T) {
+	// Given
+	r := gin.Default()
+	r.POST("/login", LoginUser)
+
+	incomingUser := models.User{
+		Username: "test",
+		Password: "test",
+	}
+
+	dbMock, gormDB := helper.SetupTestDatabase(t)
+	defer dbMock.ExpectClose()
+	database.DB = gormDB
+
+	dbMock.ExpectQuery(`SELECT \* FROM "user" WHERE username = (.+) ORDER BY "user"."id" LIMIT (.+)`).
+		WithArgs("test", 1).
+		WillReturnError(gorm.ErrRecordNotFound)
+
+	// When
+	w := helper.PerformRequest(r, "POST", "/login", helper.ToJSON(incomingUser))
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+
+	// Then
+	require.NotNil(t, response)
+}
+
+func TestLoginUser_InternalServerError(t *testing.T) {
+	// Given
+	r := gin.Default()
+	r.POST("/login", LoginUser)
+
+	incomingUser := models.User{
+		Username: "Test",
+		Password: "Test",
+	}
+
+	dbMock, gormDB := helper.SetupTestDatabase(t)
+	defer dbMock.ExpectClose()
+	database.DB = gormDB
+
+	dbMock.ExpectQuery(`SELECT \* FROM "user" WHERE username = (.+) ORDER BY "user"."id" LIMIT (.+)`).
+		WithArgs("Test", 1).
+		WillReturnError(errors.New("internal error"))
+
+	// When
+	w := helper.PerformRequest(r, "POST", "/login", helper.ToJSON(incomingUser))
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+
+	// Then
+	require.NotNil(t, response)
+}
 
 func TestLoginUser_Success(t *testing.T) {
 	// Given
@@ -54,28 +130,40 @@ func TestLoginUser_Success(t *testing.T) {
 	require.NotNil(t, response["token"])
 }
 
-func TestRegisterUser_Fail(t *testing.T) {
+func TestRegisterUser_BadRequest(t *testing.T) {
 	// Given
 	r := gin.Default()
 	r.POST("/register", RegisterUser)
 
-	parseTime, err := time.Parse(time.RFC3339Nano, "2024-02-19T15:30:45.123456Z")
-	require.NoError(t, err)
+	// When
+	w := helper.PerformRequest(r, "POST", "/register", nil)
+	require.Equal(t, http.StatusBadRequest, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+
+	// Then
+	require.NotNil(t, response)
+
+}
+
+func TestRegisterUser_InternalServerError(t *testing.T) {
+	// Given
+	r := gin.Default()
+	r.POST("/register", RegisterUser)
 
 	incomingUser := models.User{
 		Username: "test",
 		Password: "test",
 	}
 
-	hashedPassword := "$2a$14$7z17lzN8ckCiGEQQdbQ2c.XsnJYDunu8SQ1H9BG9EqT4FpVwez68K"
-
 	dbMock, gormDB := helper.SetupTestDatabase(t)
 	defer dbMock.ExpectClose()
 	database.DB = gormDB
 
-	dbMock.ExpectExec(`INSERT INTO "user" (.+) VALUES (.+)`).
-		WithArgs("test", hashedPassword, parseTime, parseTime).
-		WillReturnError(nil)
+	dbMock.ExpectQuery(`SELECT \* FROM "user" WHERE username = (.+) ORDER BY "user"."id" LIMIT (.+)`).
+		WithArgs("test", 1).
+		WillReturnError(errors.New("internal error"))
 
 	// When
 	w := helper.PerformRequest(r, "POST", "/register", helper.ToJSON(incomingUser))

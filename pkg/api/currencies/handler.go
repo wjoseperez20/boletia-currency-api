@@ -23,12 +23,6 @@ func HandleCurrencyRequest(c *gin.Context) {
 	finitQuery := c.DefaultQuery("finit", "")
 	fendQuery := c.DefaultQuery("fend", "")
 
-	// Check if currency name is empty
-	if currencyName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid currency parameter"})
-		return
-	}
-
 	// Check if currency name is "ALL" to fetch all currencies
 	if currencyName == "ALL" {
 		fetchAllCurrencies(c)
@@ -50,7 +44,7 @@ func HandleCurrencyRequest(c *gin.Context) {
 	if finitQuery != "" {
 		finit, err = time.Parse(layout, finitQuery)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start date format"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid finit date format"})
 			return
 		}
 	}
@@ -58,7 +52,7 @@ func HandleCurrencyRequest(c *gin.Context) {
 	if fendQuery != "" {
 		fend, err = time.Parse(layout, fendQuery)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end date format"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid fend date format"})
 			return
 		}
 	}

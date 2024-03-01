@@ -7,7 +7,7 @@ type Currency struct {
 	Name      string    `json:"name" gorm:"index; not null"`
 	Code      string    `json:"code" gorm:"not null"`
 	Value     float64   `json:"value" gorm:"not null"`
-	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	CreatedAt time.Time `json:"created_at" gorm:"type:timestamp;default:CURRENT_TIMESTAMP"`
 }
 
 type CurrencyData struct {
